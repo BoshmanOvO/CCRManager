@@ -1,0 +1,6 @@
+@CCRManager_HostAddress = http://localhost:5008
+
+GET {{CCRManager_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
