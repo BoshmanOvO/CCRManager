@@ -1,5 +1,6 @@
 using CCRManager.Models;
 using CCRManager.Services;
+using CCRManager.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;

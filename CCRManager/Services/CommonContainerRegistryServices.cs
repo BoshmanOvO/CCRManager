@@ -1,4 +1,5 @@
 ﻿using CCRManager.Models;
+using CCRManager.Services.Interfaces;
 using CCRManager.Utils;
 using Microsoft.AspNetCore.Authentication.BearerToken;
 using System.Globalization;
@@ -39,7 +40,6 @@ namespace CCRManager.Services
             {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
-
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
             var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
             var request = new HttpRequestMessage(HttpMethod.Get, tokenEndpoint);
@@ -105,7 +105,7 @@ namespace CCRManager.Services
                 properties = new
                 {
                     scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}",
-                    status = status,
+                    status,
                     credentials = new
                     {
                         passwords = Array.Empty<object>(),
@@ -124,7 +124,6 @@ namespace CCRManager.Services
             var prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
             return prettyJson;
         }
-
 
         public async Task<string> CreateTokenPasswordAsync(string tokenName, long epochMilliseconds)
         {

@@ -1,6 +1,6 @@
 ﻿using CCRManager.Models;
 
-namespace CCRManager.Services
+namespace CCRManager.Services.Interfaces
 {
     public interface ICommonContainerRegistryServices
     {

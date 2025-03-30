@@ -1,5 +1,5 @@
 ﻿using CCRManager.Models;
-using CCRManager.Services;
+using CCRManager.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;

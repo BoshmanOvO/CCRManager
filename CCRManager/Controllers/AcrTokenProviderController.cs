@@ -1,4 +1,4 @@
-﻿using CCRManager.Services;
+﻿using CCRManager.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
