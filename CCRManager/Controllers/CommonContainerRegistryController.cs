@@ -18,7 +18,6 @@ namespace CCRManager.Controllers
         }
         
         [HttpGet("GetToken")]
-        [Authorize]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetTokenAsync([FromQuery] string tokenName)
         {
