@@ -18,6 +18,8 @@ namespace CCRManager.Controllers
         }
         
         [HttpGet("GetToken")]
+        [Authorize]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetTokenAsync([FromQuery] string tokenName)
         {
             var tokenDetails = await _acrService.GetTokenAsync(tokenName);
@@ -29,6 +31,7 @@ namespace CCRManager.Controllers
         }
 
         [HttpPut("CreateOrUpdateScopeMaps")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> CreateOrUpdateScopeMaps([FromBody] ScopeMapRequest request)
         {
             var result = await _acrService.CreateOrUpdateScopeMapAsync(request);
@@ -36,6 +39,7 @@ namespace CCRManager.Controllers
         }
 
         [HttpPut("CreateToken")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOrCreateTokenAsync(string tokenName, long tokenExpiryDate, string scopeMapName, string status)
         {
             var result = await _acrService.GetOrCreateTokenAsync(tokenName, tokenExpiryDate, scopeMapName, status);
@@ -43,11 +47,11 @@ namespace CCRManager.Controllers
         }
 
         [HttpPut("CreateTokenPassword")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GenerateCredentialsAsync(string tokenName, long tokenExpiryDate)
         {
             var result = await _acrService.CreateTokenPasswordAsync(tokenName, tokenExpiryDate);
             return Ok(result);
         }
-
     }
 }
