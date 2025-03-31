@@ -47,12 +47,11 @@ namespace CCRManager.Services
             var response = await _httpClient.SendAsync(request);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
-                throw new HttpRequestException($"Token {tokenName} not found");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Token \"{tokenName}\" not found. Status Code: {response.StatusCode}. Error: {errorContent}");
             }
-            response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
-            var prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
-            return prettyJson;
+            return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
         public async Task<string> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
@@ -82,10 +81,14 @@ namespace CCRManager.Services
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
             var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-            var responseContent =  await response.Content.ReadAsStringAsync();
-            string prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
-            return prettyJson;
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to create or update ScopeMap '{scopeMapRequest.ScopeMapName}'. " +
+                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+            }
+            var responseContent = await response.Content.ReadAsStringAsync();
+            return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
         public async Task<string> GetOrCreateTokenAsync(string tokenName, long epochMilliseconds, string scopeMapName, string status)
@@ -119,10 +122,14 @@ namespace CCRManager.Services
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await _httpClient.SendAsync(request);
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to create or update Token '{tokenName}'. " +
+                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+            }
             var responseContent = await response.Content.ReadAsStringAsync();
-            var prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
-            return prettyJson;
+            return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
         public async Task<string> CreateTokenPasswordAsync(string tokenName, long epochMilliseconds)
@@ -149,10 +156,14 @@ namespace CCRManager.Services
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await _httpClient.SendAsync(request);
-            string responseContent = await response.Content.ReadAsStringAsync();
-            response.EnsureSuccessStatusCode();
-            string prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
-            return prettyJson;
+            if(!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to generate credentials for Token '{tokenName}'. " +
+                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+            }
+            var responseContent = await response.Content.ReadAsStringAsync();
+            return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
     }

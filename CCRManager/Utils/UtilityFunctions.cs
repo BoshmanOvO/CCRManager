@@ -10,13 +10,19 @@ namespace CCRManager.Utils
             string formattedDate = dateTimeOffset.UtcDateTime.ToString("o");
             return formattedDate;
         }
-       
         public static string PrettyPrintJson(string json)
+        {
+            using (JsonDocument doc = JsonDocument.Parse(json))
             {
-                using (JsonDocument doc = JsonDocument.Parse(json))
-                {
-                    return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
-                }
+                return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
             }
         }
+        public async Task<string> FormatResponseAsync(HttpResponseMessage response)
+        {
+            response.EnsureSuccessStatusCode();
+            string responseContent = await response.Content.ReadAsStringAsync();
+            string prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
+            return prettyJson;
+        }
+    }
 }
