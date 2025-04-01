@@ -9,7 +9,6 @@ namespace CCRManager.Controllers
     public class AcrTokenProviderController : ControllerBase
     {
         private readonly IAcrTokenProvider _acrAuthService;
-
         public AcrTokenProviderController(IAcrTokenProvider acrAuthService)
         {
             _acrAuthService = acrAuthService;
