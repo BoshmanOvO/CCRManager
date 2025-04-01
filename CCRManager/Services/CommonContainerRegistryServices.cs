@@ -1,14 +1,10 @@
 ﻿using CCRManager.Models;
 using CCRManager.Services.Interfaces;
 using CCRManager.Utils;
-using Microsoft.AspNetCore.Authentication.BearerToken;
-using System.Globalization;
 using System.Net;
-using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace CCRManager.Services
 {
