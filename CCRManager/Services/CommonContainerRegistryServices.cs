@@ -144,14 +144,14 @@ namespace CCRManager.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var endpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
-            var requestBodyObject = new
+            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
+            var requestBody = new
             {
                 tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}",
                 expiry = UtilityFunctions.ConvertDateTimeStringToIso8601(epochMilliseconds)
             };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBodyObject), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(HttpMethod.Post, endpoint)
+            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+            var request = new HttpRequestMessage(HttpMethod.Post, tokenEndpoint)
             {
                 Content = jsonContent
             };

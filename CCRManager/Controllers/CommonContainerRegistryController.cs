@@ -1,7 +1,5 @@
 ﻿using CCRManager.Models;
 using CCRManager.Services.Interfaces;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CCRManager.Controllers
@@ -17,7 +15,7 @@ namespace CCRManager.Controllers
             _acrService = acrService;
         }
         
-        [HttpGet("GetToken")]
+        [HttpGet("get-token")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetTokenAsync([FromQuery] string tokenName)
         {
@@ -29,15 +27,15 @@ namespace CCRManager.Controllers
             return Ok(tokenDetails);
         }
 
-        [HttpPut("CreateOrUpdateScopeMaps")]
+        [HttpPut("create-or-update-scope-maps")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> CreateOrUpdateScopeMaps([FromBody] ScopeMapRequest request)
+        public async Task<IActionResult> CreateOrUpdateScopeMapsAsync([FromBody] ScopeMapRequest request)
         {
             var result = await _acrService.CreateOrUpdateScopeMapAsync(request);
             return Ok(result);
         }
 
-        [HttpPut("CreateToken")]
+        [HttpPut("create-token")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetOrCreateTokenAsync(string tokenName, long tokenExpiryDate, string scopeMapName, string status)
         {
@@ -45,7 +43,7 @@ namespace CCRManager.Controllers
             return Ok(result);
         }
 
-        [HttpPut("CreateTokenPassword")]
+        [HttpPut("create-token-password")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GenerateCredentialsAsync(string tokenName, long tokenExpiryDate)
         {
