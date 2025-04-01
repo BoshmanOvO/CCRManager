@@ -1,14 +1,15 @@
-﻿using System.Text.Json;
+﻿using CCRManager.Services.Interfaces;
+using System.Text.Json;
 
 namespace CCRManager.Utils
 {
-    public class UtilityFunctions
+    public static class UtilityFunctions
     {
         public static string ConvertDateTimeStringToIso8601(long epochMilliseconds)
         {
             DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(epochMilliseconds);
             string formattedDate = dateTimeOffset.UtcDateTime.ToString("o");
-            return formattedDate;
+            return formattedDate; // year - month - day T hour : minute : second . millisecond
         }
         public static string PrettyPrintJson(string json)
         {
@@ -17,7 +18,7 @@ namespace CCRManager.Utils
                 return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
             }
         }
-        public async Task<string> FormatResponseAsync(HttpResponseMessage response)
+        public static async Task<string> FormatResponseAsync(HttpResponseMessage response)
         {
             response.EnsureSuccessStatusCode();
             string responseContent = await response.Content.ReadAsStringAsync();

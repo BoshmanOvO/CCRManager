@@ -48,7 +48,8 @@ namespace CCRManager.Services
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Token \"{tokenName}\" not found. Status Code: {response.StatusCode}. Error: {errorContent}");
+                throw new HttpRequestException($"Token \"{tokenName}\" not found. " + 
+                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
             var responseContent = await response.Content.ReadAsStringAsync();
             return UtilityFunctions.PrettyPrintJson(responseContent);
@@ -165,6 +166,5 @@ namespace CCRManager.Services
             var responseContent = await response.Content.ReadAsStringAsync();
             return UtilityFunctions.PrettyPrintJson(responseContent);
         }
-
     }
 }
