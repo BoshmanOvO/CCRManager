@@ -92,7 +92,7 @@ namespace CCRManager.Services
             return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
-        public async Task<string> GetOrCreateTokenAsync(string tokenName, long epochMilliseconds, string scopeMapName, string status)
+        public async Task<string> GetOrCreateTokenAsync(TokenRequest tokenRequest)
         {
             if (_httpClient == null)
             {
@@ -103,13 +103,13 @@ namespace CCRManager.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
+            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenRequest.TokenName}?api-version=2023-01-01-preview";
             var requestBody = new
             {
                 properties = new
                 {
-                    scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}",
-                    status,
+                    scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{tokenRequest.ScopeMapName}",
+                    tokenRequest.Status,
                     credentials = new
                     {
                         passwords = Array.Empty<object>(),
@@ -126,7 +126,7 @@ namespace CCRManager.Services
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to create or update Token '{tokenName}'. " +
+                throw new HttpRequestException($"Failed to create or update Token '{tokenRequest.TokenName}'. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
             var responseContent = await response.Content.ReadAsStringAsync();

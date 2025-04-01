@@ -20,10 +20,6 @@ namespace CCRManager.Controllers
         public async Task<IActionResult> GetTokenAsync([FromQuery] string tokenName)
         {
             var tokenDetails = await _acrService.GetTokenAsync(tokenName);
-            if (tokenDetails == null)
-            {
-                return NotFound($"Token {tokenName} not found");
-            }
             return Ok(tokenDetails);
         }
 
@@ -37,9 +33,9 @@ namespace CCRManager.Controllers
 
         [HttpPut("create-token")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetOrCreateTokenAsync(string tokenName, long tokenExpiryDate, string scopeMapName, string status)
+        public async Task<IActionResult> GetOrCreateTokenAsync([FromBody] TokenRequest tokenRequest)
         {
-            var result = await _acrService.GetOrCreateTokenAsync(tokenName, tokenExpiryDate, scopeMapName, status);
+            var result = await _acrService.GetOrCreateTokenAsync(tokenRequest);
             return Ok(result);
         }
 
