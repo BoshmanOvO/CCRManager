@@ -8,7 +8,6 @@ namespace CCRManager.Services
     {
         private readonly IConfiguration _config;
         private readonly HttpClient _httpClient;
-
         public AcrTokenProvider(IConfiguration config)
         {
             _config = config;
@@ -35,7 +34,6 @@ namespace CCRManager.Services
                 var requestContent = new FormUrlEncodedContent(requestBody);
                 var response = await _httpClient.PostAsync(tokenUrl, requestContent);
                 response.EnsureSuccessStatusCode();
-
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(responseContent);
 

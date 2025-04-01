@@ -9,7 +9,6 @@ namespace CCRManager.Controllers
     public class CommonContainerRegistryController : ControllerBase
     {
         private readonly ICommonContainerRegistryServices _acrService;
-
         public CommonContainerRegistryController(ICommonContainerRegistryServices acrService)
         {
             _acrService = acrService;
