@@ -9,7 +9,7 @@ GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/get-token?TokenName=t
 PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/create-or-update-scope-maps HTTP/1.1
 Content-Type: application/json
 {
-  "scopeMapName": "acrReadWrite",
+  "scopeMapName": "newScopeMap",
   "scopeMapDescription": "A scope map for read write",
   "actions": [
     "repositories/counterimage/content/write",

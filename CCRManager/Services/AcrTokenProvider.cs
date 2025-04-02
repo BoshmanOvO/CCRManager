@@ -3,23 +3,18 @@ using System.Text.Json;
 
 namespace CCRManager.Services
 {
-    public class AcrTokenProvider : IAcrTokenProvider
+    public class AcrTokenProvider(IConfiguration config) : IAcrTokenProvider
     {
-        private readonly IConfiguration _config;
-        private readonly HttpClient _httpClient;
-        public AcrTokenProvider(IConfiguration config)
-        {
-            _config = config;
-            _httpClient = new HttpClient();
-        }
+        private readonly HttpClient _httpClient = new();
+
         public async Task<string> GetAcrAccessTokenAsync()
         {
             try
             {
-                string _registryUrl = _config["Azure:RegistryName"] ?? throw new ArgumentNullException(nameof(_registryUrl), "RegistryName cannot be null");
-                string _clientId = _config["Azure:ClientId"] ?? throw new ArgumentNullException(nameof(_clientId), "ClientId cannot be null");
-                string _clientSecret = _config["Azure:ClientSecret"] ?? throw new ArgumentNullException(nameof(_clientSecret), "ClientSecret cannot be null");
-                string _tenantId = _config["Azure:TenantId"] ?? throw new ArgumentNullException(nameof(_tenantId), "TenantId cannot be null");
+                string _registryUrl = config["Azure:RegistryName"] ?? throw new ArgumentNullException(nameof(_registryUrl), "RegistryName cannot be null");
+                string _clientId = config["Azure:ClientId"] ?? throw new ArgumentNullException(nameof(_clientId), "ClientId cannot be null");
+                string _clientSecret = config["Azure:ClientSecret"] ?? throw new ArgumentNullException(nameof(_clientSecret), "ClientSecret cannot be null");
+                string _tenantId = config["Azure:TenantId"] ?? throw new ArgumentNullException(nameof(_tenantId), "TenantId cannot be null");
 
                 var tokenUrl = $"https://login.microsoftonline.com/{_tenantId}/oauth2/token";
                 var requestBody = new Dictionary<string, string>
