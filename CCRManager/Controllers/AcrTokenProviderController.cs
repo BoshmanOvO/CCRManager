@@ -5,13 +5,9 @@ namespace CCRManager.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AcrTokenProviderController : ControllerBase
+    public class AcrTokenProviderController(IAcrTokenProvider acrAuthService) : ControllerBase
     {
-        private readonly IAcrTokenProvider _acrAuthService;
-        public AcrTokenProviderController(IAcrTokenProvider acrAuthService)
-        {
-            _acrAuthService = acrAuthService;
-        }
+        private readonly IAcrTokenProvider _acrAuthService = acrAuthService;
 
         [HttpGet("get-token")]
         public async Task<IActionResult> GetAcrToken()
