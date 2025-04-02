@@ -1,9 +1,10 @@
-﻿namespace CCRManager.Models
+﻿
+namespace CCRManager.Models
 {
     public class ScopeMapRequest
     {
-        public required string ScopeMapName { get; set; }
-        public required string ScopeMapDescription { get; set; }
-        public required List<string> Actions { get; set; }
+        public required string Name { get; set; }
+        public required string Description { get; set; }
+        public required List<string> Permissions { get; set; }
     }
 }

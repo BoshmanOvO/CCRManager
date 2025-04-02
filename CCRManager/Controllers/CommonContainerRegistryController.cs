@@ -8,15 +8,15 @@ namespace CCRManager.Controllers
     [ApiController]
     public class CommonContainerRegistryController(ICommonContainerRegistryServices acrService) : ControllerBase
     {
-        [HttpGet("get-token")]
+        [HttpGet("token")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetTokenAsync([FromQuery] string tokenName)
+        public async Task<IActionResult> GetTokenAsync([FromQuery] string name)
         {
-            var tokenDetails = await acrService.GetTokenAsync(tokenName);
+            var tokenDetails = await acrService.GetTokenAsync(name);
             return Ok(tokenDetails);
         }
 
-        [HttpPut("create-or-update-scope-maps")]
+        [HttpPut("scopemaps")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> CreateOrUpdateScopeMapsAsync([FromBody] ScopeMapRequest request)
         {
@@ -24,19 +24,19 @@ namespace CCRManager.Controllers
             return Ok(result);
         }
 
-        [HttpPut("create-token")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [HttpPut("token")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
         public async Task<IActionResult> GetOrCreateTokenAsync([FromBody] TokenRequest tokenRequest)
         {
             var result = await acrService.GetOrCreateTokenAsync(tokenRequest);
-            return Ok(result);
+            return StatusCode(StatusCodes.Status201Created, $"Token {tokenRequest.TokenName} is successfully created.");
         }
 
-        [HttpPut("create-token-password")]
+        [HttpPut("password")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<IActionResult> GenerateCredentialsAsync(string tokenName, long tokenExpiryDate)
+        public async Task<IActionResult> GenerateCredentialsAsync([FromBody] PasswordRequest passwordRequest)
         {
-            var result = await acrService.CreateTokenPasswordAsync(tokenName, tokenExpiryDate);
+            var result = await acrService.CreateTokenPasswordAsync(passwordRequest);
             return Ok(result);
         }
     }

@@ -1,4 +1,5 @@
 ﻿using CCRManager.Models;
+using CCRManager.Responses;
 using CCRManager.Services.Interfaces;
 using CCRManager.Utils;
 using System.Net;
@@ -26,7 +27,7 @@ namespace CCRManager.Services
             _resourceGroupName = _config["Azure:ResourceGroupName"] ?? throw new ArgumentNullException(nameof(config), "ResourceGroupName cannot be null");
         }
 
-        public async Task<string> GetTokenAsync(string tokenName)
+        public async Task<TokenDetails> GetTokenAsync(string tokenName)
         {
             if (_httpClient == null)
             {
@@ -48,10 +49,22 @@ namespace CCRManager.Services
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
             var responseContent = await response.Content.ReadAsStringAsync();
-            return UtilityFunctions.PrettyPrintJson(responseContent);
+            using (JsonDocument doc = JsonDocument.Parse(responseContent))
+            {
+                var root = doc.RootElement;
+                var name = root.GetProperty("name").GetString();
+                var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+                var status = root.GetProperty("properties").GetProperty("status").GetString();
+                return new TokenDetails
+                {
+                    Name = name,
+                    CreationDate = creationDate,
+                    Status = status
+                };
+            }
         }
 
-        public async Task<string> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
+        public async Task<ScopeMapDetails> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
         {
             if (_httpClient == null)
             {
@@ -62,13 +75,14 @@ namespace CCRManager.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapRequest.ScopeMapName}?api-version=2023-01-01-preview";
+            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapRequest.Name}?api-version=2023-01-01-preview";
             var requestBody = new
             {
                 properties = new
                 {
-                    description = scopeMapRequest.ScopeMapDescription,
-                    actions = scopeMapRequest.Actions
+                    description = scopeMapRequest.Description,
+                    actions = scopeMapRequest.Permissions.Select(permission =>
+                                $"repositories/{_registryName}/{permission.ToString().ToLower()}").ToArray()
                 }
             };
             var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
@@ -81,11 +95,27 @@ namespace CCRManager.Services
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to create or update ScopeMap '{scopeMapRequest.ScopeMapName}'. " +
+                throw new HttpRequestException($"Failed to create or update ScopeMap '{scopeMapRequest.Name}'. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
+            response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
-            return UtilityFunctions.PrettyPrintJson(responseContent);
+            using (JsonDocument doc = JsonDocument.Parse(responseContent))
+            {
+                var root = doc.RootElement;
+                var name = root.GetProperty("name").GetString();
+                var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+                var description = root.GetProperty("properties").GetProperty("description").GetString();
+                List<string> actions = root.GetProperty("properties").GetProperty("actions").EnumerateArray()
+                    .Select(action => action.GetString() ?? string.Empty).ToList();
+                return new ScopeMapDetails
+                {
+                    Name = name,
+                    CreationDate = creationDate,
+                    Description = description,
+                    Actions = actions
+                };
+            }
         }
 
         public async Task<string> GetOrCreateTokenAsync(TokenRequest tokenRequest)
@@ -125,11 +155,12 @@ namespace CCRManager.Services
                 throw new HttpRequestException($"Failed to create or update Token '{tokenRequest.TokenName}'. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
+            response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
             return UtilityFunctions.PrettyPrintJson(responseContent);
         }
 
-        public async Task<string> CreateTokenPasswordAsync(string tokenName, long epochMilliseconds)
+        public async Task<string> CreateTokenPasswordAsync(PasswordRequest passwordRequest)
         {
             if (_httpClient == null)
             {
@@ -143,8 +174,8 @@ namespace CCRManager.Services
             var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
             var requestBody = new
             {
-                tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}",
-                expiry = UtilityFunctions.ConvertDateTimeStringToIso8601(epochMilliseconds)
+                tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{passwordRequest.TokenName}",
+                expiry = UtilityFunctions.ConvertToIso8601(passwordRequest.PasswordExpiryDate)
             };
             var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
             var request = new HttpRequestMessage(HttpMethod.Post, tokenEndpoint)
@@ -156,9 +187,10 @@ namespace CCRManager.Services
             if(!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to generate credentials for Token '{tokenName}'. " +
+                throw new HttpRequestException($"Failed to generate credentials for Token '{passwordRequest.TokenName}'. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
+            response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
             return UtilityFunctions.PrettyPrintJson(responseContent);
         }

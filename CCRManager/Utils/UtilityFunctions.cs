@@ -1,14 +1,30 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 
 namespace CCRManager.Utils
 {
     public static class UtilityFunctions
     {
-        public static string ConvertDateTimeStringToIso8601(long epochMilliseconds)
+        //public static string ConvertDateTimeToIso8601(DateTime input)
+        //{
+        //    // Ensure the DateTime is in UTC before formatting
+        //    return input.ToUniversalTime().ToString("o");
+        //}
+        public static string ConvertToIso8601(string time)
         {
-            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeMilliseconds(epochMilliseconds);
-            string formattedDate = dateTimeOffset.UtcDateTime.ToString("o");
-            return formattedDate; // year - month - day T hour : minute : second . millisecond
+            // Define the expected input format, e.g., "MM/dd/yyyy HH:mm:ss"
+            string format = "MM/dd/yyyy HH:mm:ss";
+            DateTime dateTime;
+
+            // Try to parse the user input according to the specified format.
+            if (DateTime.TryParseExact(time, format, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out dateTime))
+            {
+                return dateTime.ToUniversalTime().ToString("o");
+            }
+            else
+            {
+                throw new ArgumentException($"Invalid date format. Please use the format: {format}");
+            }
         }
         public static string PrettyPrintJson(string json)
         {
@@ -16,13 +32,6 @@ namespace CCRManager.Utils
             {
                 return JsonSerializer.Serialize(doc, new JsonSerializerOptions { WriteIndented = true });
             }
-        }
-        public static async Task<string> FormatResponseAsync(HttpResponseMessage response)
-        {
-            response.EnsureSuccessStatusCode();
-            string responseContent = await response.Content.ReadAsStringAsync();
-            string prettyJson = UtilityFunctions.PrettyPrintJson(responseContent);
-            return prettyJson;
         }
     }
 }
