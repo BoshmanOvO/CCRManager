@@ -106,8 +106,7 @@ namespace CCRManager.Services
                 var name = root.GetProperty("name").GetString();
                 var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
                 var description = root.GetProperty("properties").GetProperty("description").GetString();
-                List<string> actions = root.GetProperty("properties").GetProperty("actions").EnumerateArray()
-                    .Select(action => action.GetString() ?? string.Empty).ToList();
+                List<string> actions = [.. root.GetProperty("properties").GetProperty("actions").EnumerateArray().Select(action => action.GetString() ?? string.Empty)];
                 return new ScopeMapDetails
                 {
                     Name = name,
