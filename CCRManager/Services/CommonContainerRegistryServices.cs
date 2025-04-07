@@ -49,19 +49,17 @@ namespace CCRManager.Services
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
             var responseContent = await response.Content.ReadAsStringAsync();
-            using (JsonDocument doc = JsonDocument.Parse(responseContent))
+            using JsonDocument doc = JsonDocument.Parse(responseContent);
+            var root = doc.RootElement;
+            var name = root.GetProperty("name").GetString();
+            var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+            var status = root.GetProperty("properties").GetProperty("status").GetString();
+            return new TokenDetails
             {
-                var root = doc.RootElement;
-                var name = root.GetProperty("name").GetString();
-                var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
-                var status = root.GetProperty("properties").GetProperty("status").GetString();
-                return new TokenDetails
-                {
-                    Name = name,
-                    CreationDate = creationDate,
-                    Status = status
-                };
-            }
+                Name = name,
+                CreationDate = creationDate,
+                Status = status
+            };
         }
 
         public async Task<ScopeMapDetails> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
@@ -100,21 +98,19 @@ namespace CCRManager.Services
             }
             response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
-            using (JsonDocument doc = JsonDocument.Parse(responseContent))
+            using JsonDocument doc = JsonDocument.Parse(responseContent);
+            var root = doc.RootElement;
+            var name = root.GetProperty("name").GetString();
+            var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+            var description = root.GetProperty("properties").GetProperty("description").GetString();
+            List<string> actions = [.. root.GetProperty("properties").GetProperty("actions").EnumerateArray().Select(action => action.GetString() ?? string.Empty)];
+            return new ScopeMapDetails
             {
-                var root = doc.RootElement;
-                var name = root.GetProperty("name").GetString();
-                var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
-                var description = root.GetProperty("properties").GetProperty("description").GetString();
-                List<string> actions = [.. root.GetProperty("properties").GetProperty("actions").EnumerateArray().Select(action => action.GetString() ?? string.Empty)];
-                return new ScopeMapDetails
-                {
-                    Name = name,
-                    CreationDate = creationDate,
-                    Description = description,
-                    Actions = actions
-                };
-            }
+                Name = name,
+                CreationDate = creationDate,
+                Description = description,
+                Actions = actions
+            };
         }
 
         public async Task<string> GetOrCreateTokenAsync(TokenRequest tokenRequest)
@@ -191,7 +187,21 @@ namespace CCRManager.Services
             }
             response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
-            return UtilityFunctions.PrettyPrintJson(responseContent);
+            using JsonDocument doc = JsonDocument.Parse(responseContent);
+            JsonElement root = doc.RootElement;
+            string? username = root.GetProperty("username").GetString() ?? throw new Exception("Username was not found in the response.");
+            JsonElement passwordsArray = root.GetProperty("passwords");
+            JsonElement firstPassword = passwordsArray.EnumerateArray().FirstOrDefault();
+            if (firstPassword.ValueKind == JsonValueKind.Undefined)
+            {
+                throw new Exception("No passwords were returned in the response.");
+            }
+            var result = new
+            {
+                username,
+                password = firstPassword
+            };
+            return UtilityFunctions.PrettyPrintJson(JsonSerializer.Serialize(result));
         }
     }
 }

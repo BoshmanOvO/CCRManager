@@ -33,7 +33,7 @@ namespace CCRManager.Controllers
         }
 
         [HttpPut("password")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status201Created)]
         public async Task<IActionResult> GenerateCredentialsAsync([FromBody] PasswordRequest passwordRequest)
         {
             var result = await acrService.CreateTokenPasswordAsync(passwordRequest);
