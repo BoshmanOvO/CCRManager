@@ -1,34 +1,40 @@
 @CCRManager_HostAddress = http://localhost:5008
 
 
-# https://localhost:7028/api/CommonContainerRegistry/get-token?tokenName=token1
-GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/get-token?TokenName=token1 Http/1.1
+# https://localhost:7028/api/CommonContainerRegistry/token?name=token1
+GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token?name=token1 Http/1.1
 ###
 
-# https://localhost:7028/api/CommonContainerRegistry/create-or-update-scope-maps
-PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/create-or-update-scope-maps HTTP/1.1
+# https://localhost:7028/api/CommonContainerRegistry/scopemaps
+PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/scopemaps HTTP/1.1
 Content-Type: application/json
 {
-  "scopeMapName": "newScopeMap",
-  "scopeMapDescription": "A scope map for read write",
-  "actions": [
-    "repositories/counterimage/content/write",
-    "repositories/counterimage/content/read"
+  "name": "ReadWrite",
+  "description": "A scope map for read write",
+  "permissions": [
+    "content/read",
+    "content/write",
+    "metadata/read"
   ]
 }
 ###
 
-# https://localhost:7028/api/CommonContainerRegistry/create-token
-PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/create-token HTTP/1.1
+# https://localhost:7028/api/CommonContainerRegistry/token
+PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token HTTP/1.1
 Content-Type: application/json
 {
-  "tokenName": "token2",
-  "scopeMapName": "newScopeMap",
-  "tokenPasswordExpiryDateAndTime": "1746003138000",
+  "tokenName": "token4",
+  "scopeMapName": "acrReadWrite",
   "status": "enabled"
 }
 ###
 
-# https://localhost:7028/api/CommonContainerRegistry/create-token-password?tokenName=token1&tokenExpiryDate=1746003138000
-PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/create-token-password?tokenName=token2&tokenExpiryDate=1746003138000 HTTP/1.1
+# https://localhost:7028/api/CommonContainerRegistry/password
+PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/password HTTP/1.1
+Content-Type: application/json
+{
+  "tokenName": "token3",
+  "passwordExpiryDate": "04/10/2025 12:12:12"
+}
+### MM/dd/yyyy HH:MM:SS
 ###
