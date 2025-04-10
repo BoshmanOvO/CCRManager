@@ -17,11 +17,11 @@ namespace CCRManager.Controllers
         }
 
         [HttpPut("scopemaps")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status201Created)]
         public async Task<IActionResult> CreateOrUpdateScopeMapsAsync([FromBody] ScopeMapRequest request)
         {
-            var result = await acrService.CreateOrUpdateScopeMapAsync(request);
-            return Ok(result);
+            await acrService.CreateOrUpdateScopeMapAsync(request);
+            return StatusCode(StatusCodes.Status201Created, $"Scope map \"{request.Name}\" is successfully created.");
         }
 
         [HttpPut("token")]
@@ -29,7 +29,14 @@ namespace CCRManager.Controllers
         public async Task<IActionResult> GetOrCreateTokenAsync([FromBody] TokenRequest tokenRequest)
         {
             var result = await acrService.GetOrCreateTokenAsync(tokenRequest);
-            return StatusCode(StatusCodes.Status201Created, $"Token {tokenRequest.TokenName} is successfully created.");
+            if (result.IsNewlyCreated)
+            {
+                return StatusCode(StatusCodes.Status201Created, $"Token \"{tokenRequest.TokenName}\" is successfully created.");
+            }
+            else
+            {
+                return Ok($"Token \"{tokenRequest.TokenName}\" is successfully updated.");
+            }
         }
 
         [HttpPut("password")]

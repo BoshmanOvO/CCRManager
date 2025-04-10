@@ -113,8 +113,25 @@ namespace CCRManager.Services
             };
         }
 
-        public async Task<string> GetOrCreateTokenAsync(TokenRequest tokenRequest)
+        public async Task<TokenOperationResult> GetOrCreateTokenAsync(TokenRequest tokenRequest)
         {
+            bool tokenExists = false;
+            try
+            {
+                var existingToken = await GetTokenAsync(tokenRequest.TokenName);
+                tokenExists = true;
+            }
+            catch (HttpRequestException ex)
+            {
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    tokenExists = false;
+                }
+                else
+                {
+                    throw new HttpRequestException($"Error occurred while checking token existence: {ex.Message}", ex);
+                }
+            }
             if (_httpClient == null)
             {
                 throw new InvalidOperationException("HttpClient is not initialized.");
@@ -150,9 +167,14 @@ namespace CCRManager.Services
                 throw new HttpRequestException($"Failed to create or update Token '{tokenRequest.TokenName}'. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
-            response.EnsureSuccessStatusCode();
             var responseContent = await response.Content.ReadAsStringAsync();
-            return UtilityFunctions.PrettyPrintJson(responseContent);
+            var prettyResponse = UtilityFunctions.PrettyPrintJson(responseContent);
+
+            return new TokenOperationResult
+            {
+                IsNewlyCreated = !tokenExists,
+                ResponseContent = prettyResponse
+            };
         }
 
         public async Task<string> CreateTokenPasswordAsync(PasswordRequest passwordRequest)

@@ -7,7 +7,7 @@ namespace CCRManager.Services.Interfaces
     {
         Task<TokenDetails> GetTokenAsync(string tokenName); // to check if that particular token exists or not
         Task<string> CreateTokenPasswordAsync(PasswordRequest passwordRequest); // to create token's password
-        Task<string> GetOrCreateTokenAsync(TokenRequest tokeRequest); // to create token and update its scope map
+        Task<TokenOperationResult> GetOrCreateTokenAsync(TokenRequest tokeRequest); // to create token and update its scope map
         Task<ScopeMapDetails> CreateOrUpdateScopeMapAsync(ScopeMapRequest request); // only handled by admin
     }
 }
