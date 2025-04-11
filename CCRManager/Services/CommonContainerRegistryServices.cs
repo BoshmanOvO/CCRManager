@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using static System.Net.WebRequestMethods;
 
 namespace CCRManager.Services
 {
@@ -30,95 +31,129 @@ namespace CCRManager.Services
         public async Task<TokenDetails> GetTokenAsync(string tokenName)
         {
             if (_httpClient == null)
-            {
                 throw new InvalidOperationException("HttpClient is not initialized.");
-            }
+
             if (_acrTokenProvider == null)
-            {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
-            }
-            var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
-            var request = new HttpRequestMessage(HttpMethod.Get, tokenEndpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
-            var response = await _httpClient.SendAsync(request);
-            if (response.StatusCode == HttpStatusCode.NotFound)
+
+            try
             {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Token \"{tokenName}\" not found. " + 
-                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+                var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
+                var request = new HttpRequestMessage(HttpMethod.Get, tokenEndpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
+                var response = await _httpClient.SendAsync(request);
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new Exception($"Token '{tokenName}' not found.");
+                }
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Failed to get token '{tokenName}'. Status Code: {response.StatusCode}");
+                }
+                var responseContent = await response.Content.ReadAsStringAsync();
+                using JsonDocument doc = JsonDocument.Parse(responseContent);
+                var root = doc.RootElement;
+                return new TokenDetails
+                {
+                    Name = root.GetProperty("name").GetString(),
+                    CreationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime(),
+                    Status = root.GetProperty("properties").GetProperty("status").GetString()
+                };
             }
-            var responseContent = await response.Content.ReadAsStringAsync();
-            using JsonDocument doc = JsonDocument.Parse(responseContent);
-            var root = doc.RootElement;
-            var name = root.GetProperty("name").GetString();
-            var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
-            var status = root.GetProperty("properties").GetProperty("status").GetString();
-            return new TokenDetails
+            catch (Exception ex)
             {
-                Name = name,
-                CreationDate = creationDate,
-                Status = status
-            };
+                throw new Exception($"Error fetching token '{tokenName}': {ex.Message}");
+            }
         }
 
         public async Task<ScopeMapDetails> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
         {
+            if (scopeMapRequest == null)
+            {
+                throw new ArgumentNullException(nameof(scopeMapRequest), "ScopeMapRequest cannot be null.");
+            }
             if (_httpClient == null)
             {
-                throw new InvalidOperationException("HttpClient is not initialized.");
+                throw new InvalidOperationException("HttpClient is not initialized. Please check your configuration.");
             }
             if (_acrTokenProvider == null)
             {
-                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+                throw new InvalidOperationException("AcrTokenProvider is not initialized. Please check your configuration.");
             }
-            var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapRequest.Name}?api-version=2023-01-01-preview";
-            var requestBody = new
+            try
             {
-                properties = new
+                var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapRequest.Name}?api-version=2023-01-01-preview";
+
+                var requestBody = new
                 {
-                    description = scopeMapRequest.Description,
-                    actions = scopeMapRequest.Permissions.Select(permission =>
-                                $"repositories/{_registryName}/{permission.ToString().ToLower()}").ToArray()
+                    properties = new
+                    {
+                        description = scopeMapRequest.Description,
+                        actions = scopeMapRequest.Permissions.Select(permission =>
+                                        $"repositories/{_registryName}/{permission.ToString().ToLower()}").ToArray()
+                    }
+                };
+                var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(HttpMethod.Put, tokenEndpoint)
+                {
+                    Content = jsonContent
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"Failed to create or update ScopeMap '{scopeMapRequest.Name}'. " +
+                                                   $"Status Code: {response.StatusCode}. Error: {errorContent}");
                 }
-            };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(HttpMethod.Put, tokenEndpoint)
-            {
-                Content = jsonContent
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to create or update ScopeMap '{scopeMapRequest.Name}'. " +
-                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+                ScopeMapDetails scopeMapDetails;
+                try
+                {
+                    using JsonDocument doc = JsonDocument.Parse(responseContent);
+                    var root = doc.RootElement;
+                    string name = root.GetProperty("name").GetString()
+                                  ?? throw new Exception("The response does not contain a valid 'name'.");
+                    DateTime creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+                    string description = root.GetProperty("properties").GetProperty("description").GetString() ?? string.Empty;
+                    var actions = root.GetProperty("properties").GetProperty("actions")
+                                      .EnumerateArray()
+                                      .Select(action => action.GetString() ?? string.Empty)
+                                      .ToList();
+
+                    scopeMapDetails = new ScopeMapDetails
+                    {
+                        Name = name,
+                        CreationDate = creationDate,
+                        Description = description,
+                        Actions = actions
+                    };
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Failed to parse the response for ScopeMap '{scopeMapRequest.Name}': {ex.Message}", ex);
+                }
+
+                return scopeMapDetails;
             }
-            response.EnsureSuccessStatusCode();
-            var responseContent = await response.Content.ReadAsStringAsync();
-            using JsonDocument doc = JsonDocument.Parse(responseContent);
-            var root = doc.RootElement;
-            var name = root.GetProperty("name").GetString();
-            var creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
-            var description = root.GetProperty("properties").GetProperty("description").GetString();
-            List<string> actions = [.. root.GetProperty("properties").GetProperty("actions").EnumerateArray().Select(action => action.GetString() ?? string.Empty)];
-            return new ScopeMapDetails
+            catch (HttpRequestException)
             {
-                Name = name,
-                CreationDate = creationDate,
-                Description = description,
-                Actions = actions
-            };
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while creating or updating ScopeMap '{scopeMapRequest.Name}': {ex.Message}", ex);
+            }
         }
 
         public async Task<TokenOperationResult> GetOrCreateTokenAsync(TokenRequest tokenRequest)
         {
-            bool tokenExists = false;
+            bool tokenExists;
             try
             {
-                var existingToken = await GetTokenAsync(tokenRequest.TokenName);
+                await GetTokenAsync(tokenRequest.TokenName);
                 tokenExists = true;
             }
             catch (HttpRequestException ex)
@@ -129,56 +164,139 @@ namespace CCRManager.Services
                 }
                 else
                 {
-                    throw new HttpRequestException($"Error occurred while checking token existence: {ex.Message}", ex);
+                    throw new HttpRequestException($"Error occurred while checking token existence for '{tokenRequest.TokenName}': {ex.Message}", ex);
                 }
             }
             if (_httpClient == null)
             {
-                throw new InvalidOperationException("HttpClient is not initialized.");
+                throw new InvalidOperationException("HttpClient is not initialized. Please check your service configuration.");
             }
             if (_acrTokenProvider == null)
             {
-                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+                throw new InvalidOperationException("AcrTokenProvider is not initialized. Please check your service configuration.");
             }
-            var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenRequest.TokenName}?api-version=2023-01-01-preview";
-            var requestBody = new
+            try
             {
-                properties = new
+                var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenRequest.TokenName}?api-version=2023-01-01-preview";
+                var requestBody = new
                 {
-                    scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{tokenRequest.ScopeMapName}",
-                    tokenRequest.Status,
-                    credentials = new
+                    properties = new
                     {
-                        passwords = Array.Empty<object>(),
+                        scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{tokenRequest.ScopeMapName}",
+                        tokenRequest.Status,
+                        credentials = new
+                        {
+                            passwords = Array.Empty<object>(),
+                        }
                     }
+                };
+                var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(HttpMethod.Put, tokenEndpoint)
+                {
+                    Content = jsonContent
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"Failed to create or update token '{tokenRequest.TokenName}'. Status Code: {response.StatusCode}. Error: {errorContent}");
                 }
-            };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(HttpMethod.Put, tokenEndpoint)
-            {
-                Content = jsonContent
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            var response = await _httpClient.SendAsync(request);
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to create or update Token '{tokenRequest.TokenName}'. " +
-                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
+                var responseContent = await response.Content.ReadAsStringAsync();
+                var prettyResponse = UtilityFunctions.PrettyPrintJson(responseContent);
+                return new TokenOperationResult
+                {
+                    IsNewlyCreated = !tokenExists,
+                    ResponseContent = prettyResponse
+                };
             }
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var prettyResponse = UtilityFunctions.PrettyPrintJson(responseContent);
-
-            return new TokenOperationResult
+            catch (HttpRequestException)
             {
-                IsNewlyCreated = !tokenExists,
-                ResponseContent = prettyResponse
-            };
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An unexpected error occurred while processing token '{tokenRequest.TokenName}': {ex.Message}", ex);
+            }
         }
 
         public async Task<string> CreateTokenPasswordAsync(PasswordRequest passwordRequest)
         {
+            if (passwordRequest == null)
+            {
+                throw new ArgumentNullException(nameof(passwordRequest), "PasswordRequest payload cannot be null.");
+            }
+
+            if (_httpClient == null)
+            {
+                throw new InvalidOperationException("HttpClient is not initialized.");
+            }
+
+            if (_acrTokenProvider == null)
+            {
+                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+            }
+            try
+            {
+                var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+
+                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
+                var requestBody = new
+                {
+                    tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{passwordRequest.TokenName}",
+                    expiry = UtilityFunctions.ConvertToIso8601(passwordRequest.PasswordExpiryDate)
+                };
+                var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                var request = new HttpRequestMessage(HttpMethod.Post, tokenEndpoint)
+                {
+                    Content = jsonContent
+                };
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new HttpRequestException($"Failed to generate credentials for Token '{passwordRequest.TokenName}'. " +
+                                                   $"Status Code: {response.StatusCode}. Error: {errorContent}");
+                }
+                var responseContent = await response.Content.ReadAsStringAsync();
+                using JsonDocument doc = JsonDocument.Parse(responseContent);
+                var root = doc.RootElement;
+                if (!root.TryGetProperty("username", out JsonElement usernameElement) || usernameElement.ValueKind != JsonValueKind.String)
+                {
+                    throw new Exception("Username was not found in the response or is not a valid string.");
+                }
+                string username = usernameElement.GetString()!;
+                if (!root.TryGetProperty("passwords", out JsonElement passwordsElement) || passwordsElement.ValueKind != JsonValueKind.Array)
+                {
+                    throw new Exception("Passwords array was not found in the response.");
+                }
+                JsonElement firstPassword = passwordsElement.EnumerateArray().FirstOrDefault();
+                if (firstPassword.ValueKind == JsonValueKind.Undefined)
+                {
+                    throw new Exception("No passwords were returned in the response.");
+                }
+                var result = new
+                {
+                    username,
+                    password = firstPassword
+                };
+                return UtilityFunctions.PrettyPrintJson(JsonSerializer.Serialize(result));
+            }
+            catch (HttpRequestException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"An error occurred while generating credentials for token '{passwordRequest.TokenName}': {ex.Message}", ex);
+            }
+        }
+
+        public async Task<string> DeleteTokenAsync(string tokenName)
+        {
+            await GetTokenAsync(tokenName);
             if (_httpClient == null)
             {
                 throw new InvalidOperationException("HttpClient is not initialized.");
@@ -187,43 +305,29 @@ namespace CCRManager.Services
             {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
-            var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
-            var requestBody = new
-            {
-                tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{passwordRequest.TokenName}",
-                expiry = UtilityFunctions.ConvertToIso8601(passwordRequest.PasswordExpiryDate)
-            };
-            var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-            var request = new HttpRequestMessage(HttpMethod.Post, tokenEndpoint)
-            {
-                Content = jsonContent
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
+            var request = new HttpRequestMessage(HttpMethod.Delete, tokenEndpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
             var response = await _httpClient.SendAsync(request);
-            if(!response.IsSuccessStatusCode)
+            if(response.StatusCode == HttpStatusCode.NotFound)
             {
                 var errorContent = await response.Content.ReadAsStringAsync();
-                throw new HttpRequestException($"Failed to generate credentials for Token '{passwordRequest.TokenName}'. " +
+                throw new HttpRequestException($"Token \"{tokenName}\" not found. " +
                                                $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
-            response.EnsureSuccessStatusCode();
-            var responseContent = await response.Content.ReadAsStringAsync();
-            using JsonDocument doc = JsonDocument.Parse(responseContent);
-            JsonElement root = doc.RootElement;
-            string? username = root.GetProperty("username").GetString() ?? throw new Exception("Username was not found in the response.");
-            JsonElement passwordsArray = root.GetProperty("passwords");
-            JsonElement firstPassword = passwordsArray.EnumerateArray().FirstOrDefault();
-            if (firstPassword.ValueKind == JsonValueKind.Undefined)
+            if (!response.IsSuccessStatusCode)
             {
-                throw new Exception("No passwords were returned in the response.");
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to delete token \"{tokenName}\". " +
+                                               $"Status Code: {response.StatusCode}. Error: {errorContent}");
             }
-            var result = new
+            var resultContent = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(resultContent))
             {
-                username,
-                password = firstPassword
-            };
-            return UtilityFunctions.PrettyPrintJson(JsonSerializer.Serialize(result));
+                resultContent = $"Token \"{tokenName}\" deleted successfully.";
+            }
+            return resultContent;
         }
     }
 }
