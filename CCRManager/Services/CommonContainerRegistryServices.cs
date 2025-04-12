@@ -31,11 +31,13 @@ namespace CCRManager.Services
         public async Task<TokenDetails> GetTokenAsync(string tokenName)
         {
             if (_httpClient == null)
+            {
                 throw new InvalidOperationException("HttpClient is not initialized.");
-
+            }
             if (_acrTokenProvider == null)
+            {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
-
+            }
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
@@ -64,6 +66,66 @@ namespace CCRManager.Services
             catch (Exception ex)
             {
                 throw new Exception($"Error fetching token '{tokenName}': {ex.Message}");
+            }
+        }
+
+        public async Task<ScopeMapDetails> GetScopeMapAsync(string scopeMapName)
+        {
+            if (_httpClient == null)
+                throw new InvalidOperationException("HttpClient is not initialized.");
+
+            if (_acrTokenProvider == null)
+                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+
+            try
+            {
+                var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+                var scopeMapEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}?api-version=2023-01-01-preview";
+
+                var request = new HttpRequestMessage(HttpMethod.Get, scopeMapEndpoint);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
+
+                var response = await _httpClient.SendAsync(request);
+
+                if (response.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new Exception($"Scope map '{scopeMapName}' not found.");
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception($"Failed to get scope map '{scopeMapName}'. Status Code: {response.StatusCode}");
+                }
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                using JsonDocument doc = JsonDocument.Parse(responseContent);
+                var root = doc.RootElement;
+
+                string? name = root.GetProperty("name").GetString();
+                DateTime creationDate = root.GetProperty("properties").GetProperty("creationDate").GetDateTime();
+                string? description = root.GetProperty("properties").TryGetProperty("description", out JsonElement descElement) ? descElement.GetString() : string.Empty;
+
+                List<string> actions = [];
+                if (root.GetProperty("properties").TryGetProperty("actions", out JsonElement actionsElement))
+                {
+                    foreach (var action in actionsElement.EnumerateArray())
+                    {
+                        if (action.ValueKind == JsonValueKind.String)
+                            actions.Add(action.GetString());
+                    }
+                }
+
+                return new ScopeMapDetails
+                {
+                    Name = name,
+                    Description = description,
+                    CreationDate = creationDate,
+                    Actions = actions
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error fetching scope map '{scopeMapName}': {ex.Message}");
             }
         }
 
@@ -227,12 +289,10 @@ namespace CCRManager.Services
             {
                 throw new ArgumentNullException(nameof(passwordRequest), "PasswordRequest payload cannot be null.");
             }
-
             if (_httpClient == null)
             {
                 throw new InvalidOperationException("HttpClient is not initialized.");
             }
-
             if (_acrTokenProvider == null)
             {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
@@ -329,5 +389,45 @@ namespace CCRManager.Services
             }
             return resultContent;
         }
+
+        public async Task<string> DeleteScopeMapAsync(string scopeMapName)
+        {
+            await GetScopeMapAsync(scopeMapName);
+            if (_httpClient == null)
+            {
+                throw new InvalidOperationException("HttpClient is not initialized.");
+            }
+            if (_acrTokenProvider == null)
+            {
+                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+            }
+            var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
+            var endpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}?api-version=2023-01-01-preview";
+
+            var request = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Scope map '{scopeMapName}' not found. Status Code: {response.StatusCode}. Error: {errorContent}");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to delete scope map '{scopeMapName}'. Status Code: {response.StatusCode}. Error: {errorContent}");
+            }
+
+            var resultContent = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrWhiteSpace(resultContent))
+            {
+                resultContent = $"Scope map '{scopeMapName}' deleted successfully.";
+            }
+            return resultContent;
+        }
+
     }
 }
