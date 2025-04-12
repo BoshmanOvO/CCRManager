@@ -54,7 +54,6 @@ namespace CCRManager.Controllers
             }
         }
 
-
         [HttpPut("scopemap")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -84,6 +83,58 @@ namespace CCRManager.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError,
                     new { error = "An unexpected error occurred while creating/updating the scope map.", details = ex.Message });
+            }
+        }
+
+        [HttpDelete("scopemap")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> DeleteScopeMap([FromQuery] string scopeMapName)
+        {
+            if (string.IsNullOrWhiteSpace(scopeMapName))
+            {
+                return BadRequest(new { error = "Scope map name is required." });
+            }
+            try
+            {
+                var result = await acrService.DeleteScopeMapAsync(scopeMapName);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new { error = ex.Message });
+                }
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to delete scope map.", details = ex.Message });
+            }
+        }
+
+        [HttpGet("scopemap")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetScopeMapAsync([FromQuery] string scopeMapName)
+        {
+            if (string.IsNullOrWhiteSpace(scopeMapName))
+            {
+                return BadRequest(new { error = "Scope map name is required." });
+            }
+
+            try
+            {
+                var scopeMapDetails = await acrService.GetScopeMapAsync(scopeMapName);
+                return Ok(scopeMapDetails);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new { error = ex.Message });
+                }
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
 
@@ -183,56 +234,5 @@ namespace CCRManager.Controllers
             }
         }
 
-        [HttpDelete("scopemap")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteScopeMap([FromQuery] string scopeMapName)
-        {
-            if (string.IsNullOrWhiteSpace(scopeMapName))
-            {
-                return BadRequest(new { error = "Scope map name is required." });
-            }
-            try
-            {
-                var result = await acrService.DeleteScopeMapAsync(scopeMapName);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NotFound(new { error = ex.Message });
-                }
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to delete scope map.", details = ex.Message });
-            }
-        }
-
-        [HttpGet("scopemap")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetScopeMapAsync([FromQuery] string scopeMapName)
-        {
-            if (string.IsNullOrWhiteSpace(scopeMapName))
-            {
-                return BadRequest(new { error = "Scope map name is required." });
-            }
-
-            try
-            {
-                var scopeMapDetails = await acrService.GetScopeMapAsync(scopeMapName);
-                return Ok(scopeMapDetails);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NotFound(new { error = ex.Message });
-                }
-                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
-            }
-        }
     }
 }
