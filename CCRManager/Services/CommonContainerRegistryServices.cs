@@ -1,9 +1,11 @@
-﻿using CCRManager.Models;
+﻿using CCRManager.Constants;
+using CCRManager.Models;
 using CCRManager.Responses;
 using CCRManager.Services.Interfaces;
 using CCRManager.Utils;
 using System.Net;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using static System.Net.WebRequestMethods;
@@ -41,8 +43,8 @@ namespace CCRManager.Services
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
-                var request = new HttpRequestMessage(HttpMethod.Get, tokenEndpoint);
+                var GetTokenEndpoint = string.Format(AzureApiEndpoints.GetToken, _subscriptionId, _resourceGroupName, _registryName, tokenName);
+                var request = new HttpRequestMessage(HttpMethod.Get, GetTokenEndpoint);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
                 var response = await _httpClient.SendAsync(request);
                 if (response.StatusCode == HttpStatusCode.NotFound)
@@ -80,9 +82,8 @@ namespace CCRManager.Services
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var scopeMapEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}?api-version=2023-01-01-preview";
-
-                var request = new HttpRequestMessage(HttpMethod.Get, scopeMapEndpoint);
+                var getScopeMapEndpoint = string.Format(AzureApiEndpoints.GetScopeMap, _subscriptionId, _resourceGroupName, _registryName, scopeMapName);
+                var request = new HttpRequestMessage(HttpMethod.Get, getScopeMapEndpoint);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
 
                 var response = await _httpClient.SendAsync(request);
@@ -129,7 +130,7 @@ namespace CCRManager.Services
             }
         }
 
-        public async Task<ScopeMapDetails> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
+        public async Task<ScopeMapOperationResult> CreateOrUpdateScopeMapAsync(ScopeMapRequest scopeMapRequest)
         {
             if (scopeMapRequest == null)
             {
@@ -143,11 +144,11 @@ namespace CCRManager.Services
             {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized. Please check your configuration.");
             }
+            bool scopeMapExists = await ScopeMapExistAsync(scopeMapRequest.Name);
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapRequest.Name}?api-version=2023-01-01-preview";
-
+                var tokenEndpoint = string.Format(AzureApiEndpoints.CreateScopeMapEndPoint, _subscriptionId, _resourceGroupName, _registryName, scopeMapRequest.Name);
                 var requestBody = new
                 {
                     properties = new
@@ -197,8 +198,12 @@ namespace CCRManager.Services
                 {
                     throw new Exception($"Failed to parse the response for ScopeMap '{scopeMapRequest.Name}': {ex.Message}", ex);
                 }
-
-                return scopeMapDetails;
+                bool isNewlyCreated = !scopeMapExists;
+                return new ScopeMapOperationResult
+                {
+                    IsNewlyCreated = isNewlyCreated,
+                    ScopeMapDetails = scopeMapDetails
+                };
             }
             catch (HttpRequestException)
             {
@@ -210,25 +215,8 @@ namespace CCRManager.Services
             }
         }
 
-        public async Task<TokenOperationResult> GetOrCreateTokenAsync(TokenRequest tokenRequest)
+        public async Task<TokenOperationResult> CreateOrUpdateTokenAsync(TokenRequest tokenRequest)
         {
-            bool tokenExists;
-            try
-            {
-                await GetTokenAsync(tokenRequest.TokenName);
-                tokenExists = true;
-            }
-            catch (HttpRequestException ex)
-            {
-                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
-                {
-                    tokenExists = false;
-                }
-                else
-                {
-                    throw new HttpRequestException($"Error occurred while checking token existence for '{tokenRequest.TokenName}': {ex.Message}", ex);
-                }
-            }
             if (_httpClient == null)
             {
                 throw new InvalidOperationException("HttpClient is not initialized. Please check your service configuration.");
@@ -237,24 +225,25 @@ namespace CCRManager.Services
             {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized. Please check your service configuration.");
             }
+            bool tokenExists = await TokenExistsAsync(tokenRequest.TokenName);
             try
             {
                 var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenRequest.TokenName}?api-version=2023-01-01-preview";
+                var createTokenEndpoint = string.Format(AzureApiEndpoints.CreateTokenEndpoint, _subscriptionId, _resourceGroupName, _registryName, tokenRequest.TokenName);
                 var requestBody = new
                 {
                     properties = new
                     {
-                        scopeMapId = $"/subscriptions/{_subscriptionId}/resourceGroups/MyResource/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{tokenRequest.ScopeMapName}",
+                        scopeMapId = string.Format(AzureApiEndpoints.ScopeMapId, _subscriptionId, _resourceGroupName, _registryName, tokenRequest.ScopeMapName),
                         tokenRequest.Status,
                         credentials = new
                         {
-                            passwords = Array.Empty<object>(),
+                            passwords = Array.Empty<object>()
                         }
                     }
                 };
                 var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var request = new HttpRequestMessage(HttpMethod.Put, tokenEndpoint)
+                var request = new HttpRequestMessage(HttpMethod.Put, createTokenEndpoint)
                 {
                     Content = jsonContent
                 };
@@ -267,9 +256,10 @@ namespace CCRManager.Services
                 }
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var prettyResponse = UtilityFunctions.PrettyPrintJson(responseContent);
+                bool isNewlyCreated = !tokenExists;
                 return new TokenOperationResult
                 {
-                    IsNewlyCreated = !tokenExists,
+                    IsNewlyCreated = isNewlyCreated,
                     ResponseContent = prettyResponse
                 };
             }
@@ -301,14 +291,14 @@ namespace CCRManager.Services
             {
                 var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
 
-                var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/generateCredentials?api-version=2023-01-01-preview";
+                var createTokenPasswordEndpoint = string.Format(AzureApiEndpoints.CreateTokenPasswordEndpoint, _subscriptionId, _resourceGroupName, _registryName);
                 var requestBody = new
                 {
-                    tokenId = $"/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{passwordRequest.TokenName}",
+                    tokenId = string.Format(AzureApiEndpoints.TokenId, _subscriptionId, _resourceGroupName, _registryName, passwordRequest.TokenName),
                     expiry = UtilityFunctions.ConvertToIso8601(passwordRequest.PasswordExpiryDate)
                 };
                 var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var request = new HttpRequestMessage(HttpMethod.Post, tokenEndpoint)
+                var request = new HttpRequestMessage(HttpMethod.Post, createTokenPasswordEndpoint)
                 {
                     Content = jsonContent
                 };
@@ -366,8 +356,8 @@ namespace CCRManager.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var tokenEndpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/tokens/{tokenName}?api-version=2023-01-01-preview";
-            var request = new HttpRequestMessage(HttpMethod.Delete, tokenEndpoint);
+            var DeleteTokenEndpoint = string.Format(AzureApiEndpoints.DeleteTokenEndpoint, _subscriptionId, _resourceGroupName, _registryName, tokenName);
+            var request = new HttpRequestMessage(HttpMethod.Delete, DeleteTokenEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
             var response = await _httpClient.SendAsync(request);
             if(response.StatusCode == HttpStatusCode.NotFound)
@@ -402,9 +392,8 @@ namespace CCRManager.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var endpoint = $"https://management.azure.com/subscriptions/{_subscriptionId}/resourceGroups/{_resourceGroupName}/providers/Microsoft.ContainerRegistry/registries/{_registryName}/scopeMaps/{scopeMapName}?api-version=2023-01-01-preview";
-
-            var request = new HttpRequestMessage(HttpMethod.Delete, endpoint);
+            var DeleteScopeMapEndpoint = string.Format(AzureApiEndpoints.DeleteScopeMapEndpoint, _subscriptionId, _resourceGroupName, _registryName, scopeMapName);
+            var request = new HttpRequestMessage(HttpMethod.Delete, DeleteScopeMapEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
 
             var response = await _httpClient.SendAsync(request);
@@ -428,6 +417,36 @@ namespace CCRManager.Services
             }
             return resultContent;
         }
+
+
+
+
+        public async Task<bool> TokenExistsAsync(string tokenName)
+        {
+            try
+            {
+                var token = await GetTokenAsync(tokenName);
+                return token != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> ScopeMapExistAsync(string scopeMapName)
+        {
+            try
+            {
+                var scopeMap = await GetScopeMapAsync(scopeMapName);
+                return scopeMap != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
 
     }
 }

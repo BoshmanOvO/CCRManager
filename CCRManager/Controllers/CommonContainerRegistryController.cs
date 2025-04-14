@@ -24,50 +24,37 @@ namespace CCRManager.Controllers
                 var tokenDetails = await acrService.GetTokenAsync(name);
                 return Ok(tokenDetails);
             }
-            catch (HttpRequestException ex)
+            catch (Exception ex)
             {
                 if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
                 {
                     return NotFound(new { error = ex.Message });
                 }
-                return StatusCode(StatusCodes.Status500InternalServerError, new
-                {
-                    error = "Error occurred while fetching token details.",
-                    details = ex.Message
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new
-                {
-                    error = "Service configuration error.",
-                    details = ex.Message
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(StatusCodes.Status500InternalServerError, new
-                {
-                    error = "An unexpected error occurred while processing your request.",
-                    details = ex.Message
-                });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = ex.Message });
             }
         }
 
-        [HttpPut("scopemap")]
+        [HttpPatch("scopemap")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> CreateOrUpdateScopeMapsAsync([FromBody] ScopeMapRequest request)
+        public async Task<IActionResult> CreateOrUpdateScopeMapsAsync([FromBody] ScopeMapRequest scopeMapRequest)
         {
-            if (request == null)
+            if (scopeMapRequest == null)
             {
                 return BadRequest(new { error = "ScopeMapRequest payload cannot be null." });
             }
             try
             {
-                var result = await acrService.CreateOrUpdateScopeMapAsync(request);
-                return StatusCode(StatusCodes.Status201Created, $"Scope map \"{request.Name}\" is successfully created/updated.");
+                var result = await acrService.CreateOrUpdateScopeMapAsync(scopeMapRequest);
+                if (result.IsNewlyCreated)
+                {
+                    return StatusCode(StatusCodes.Status201Created, $"Token \"{scopeMapRequest.Name}\" is successfully created.");
+                }
+                else
+                {
+                    return Ok($"Token \"{scopeMapRequest.Name}\" is successfully updated.");
+                }
             }
             catch (HttpRequestException ex)
             {
@@ -90,16 +77,16 @@ namespace CCRManager.Controllers
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> DeleteScopeMap([FromQuery] string scopeMapName)
+        public async Task<IActionResult> DeleteScopeMap([FromQuery] string name)
         {
-            if (string.IsNullOrWhiteSpace(scopeMapName))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 return BadRequest(new { error = "Scope map name is required." });
             }
             try
             {
-                var result = await acrService.DeleteScopeMapAsync(scopeMapName);
-                return Ok(result);
+                var result = await acrService.DeleteScopeMapAsync(name);
+                return StatusCode(StatusCodes.Status204NoContent, result);
             }
             catch (Exception ex)
             {
@@ -138,12 +125,12 @@ namespace CCRManager.Controllers
             }
         }
 
-        [HttpPut("token")]
+        [HttpPatch("token")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetOrCreateTokenAsync([FromBody] TokenRequest tokenRequest)
+        public async Task<IActionResult> CreateOrUpdateTokenAsync([FromBody] TokenRequest tokenRequest)
         {
             if (tokenRequest == null)
             {
@@ -151,7 +138,7 @@ namespace CCRManager.Controllers
             }
             try
             {
-                var result = await acrService.GetOrCreateTokenAsync(tokenRequest);
+                var result = await acrService.CreateOrUpdateTokenAsync(tokenRequest);
                 if (result.IsNewlyCreated)
                 {
                     return StatusCode(StatusCodes.Status201Created, $"Token \"{tokenRequest.TokenName}\" is successfully created.");
@@ -195,7 +182,7 @@ namespace CCRManager.Controllers
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
+                return StatusCode(StatusCodes.Status404NotFound,
                     new { error = "Failed to generate token credentials.", details = ex.Message });
             }
             catch (ArgumentException ex)
@@ -218,19 +205,15 @@ namespace CCRManager.Controllers
             try
             {
                 var result = await acrService.DeleteTokenAsync(name);
-                return StatusCode(StatusCodes.Status202Accepted, result);
-            }
-            catch (HttpRequestException ex)
-            {
-                if (ex.Message.Contains("Not found", StringComparison.OrdinalIgnoreCase))
-                {
-                    return NotFound(ex.Message);
-                }
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+                return StatusCode(StatusCodes.Status204NoContent, result);
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+                if (ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new { error = ex.Message });
+                }
+                return StatusCode(StatusCodes.Status500InternalServerError, new { error = "Failed to delete token.", details = ex.Message });
             }
         }
 
