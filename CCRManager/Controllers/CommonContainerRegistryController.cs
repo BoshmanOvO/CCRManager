@@ -103,16 +103,16 @@ namespace CCRManager.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetScopeMapAsync([FromQuery] string scopeMapName)
+        public async Task<IActionResult> GetScopeMapAsync([FromQuery] string name)
         {
-            if (string.IsNullOrWhiteSpace(scopeMapName))
+            if (string.IsNullOrWhiteSpace(name))
             {
                 return BadRequest(new { error = "Scope map name is required." });
             }
 
             try
             {
-                var scopeMapDetails = await acrService.GetScopeMapAsync(scopeMapName);
+                var scopeMapDetails = await acrService.GetScopeMapAsync(name);
                 return Ok(scopeMapDetails);
             }
             catch (Exception ex)
