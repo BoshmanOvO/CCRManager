@@ -1,4 +1,4 @@
-﻿namespace CCRManager.Constants
+﻿namespace CommonContainerRegistry.Constants
 {
     public class AzureApiEndpoints
     {

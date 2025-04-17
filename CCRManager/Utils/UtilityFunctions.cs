@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text.Json;
 
-namespace CCRManager.Utils
+namespace CommonContainerRegistry.Utils
 {
     public static class UtilityFunctions
     {

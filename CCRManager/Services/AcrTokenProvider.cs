@@ -1,7 +1,7 @@
-﻿using CCRManager.Services.Interfaces;
+﻿using CommonContainerRegistry.Services.ServicesInterfaces;
 using System.Text.Json;
 
-namespace CCRManager.Services
+namespace CommonContainerRegistry.Services
 {
     public class AcrTokenProvider(IConfiguration config) : IAcrTokenProvider
     {

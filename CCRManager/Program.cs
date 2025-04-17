@@ -1,10 +1,7 @@
-using CCRManager.Models;
-using CCRManager.Services;
-using CCRManager.Services.Interfaces;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
+
+using CommonContainerRegistry.Services;
+using CommonContainerRegistry.Services.ServicesInterfaces;
 using Microsoft.OpenApi.Models;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 

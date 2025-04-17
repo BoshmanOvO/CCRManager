@@ -1,15 +1,14 @@
-﻿using CCRManager.Constants;
-using CCRManager.Models;
-using CCRManager.Responses;
-using CCRManager.Services.Interfaces;
-using CCRManager.Utils;
+﻿using CommonContainerRegistry.Utils;
+using CommonContainerRegistry.Models;   
+using CommonContainerRegistry.Responses;
+using CommonContainerRegistry.Services.ServicesInterfaces;
 using System.Net;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
+using CommonContainerRegistry.Constants;
 
-namespace CCRManager.Services
+namespace CommonContainerRegistry.Services
 {
     public class CommonContainerRegistryServices : ICommonContainerRegistryServices
     {
@@ -21,12 +20,14 @@ namespace CCRManager.Services
         private readonly string? _resourceGroupName;
         public CommonContainerRegistryServices(IConfiguration config, HttpClient httpClient, IAcrTokenProvider acrTokenProvider)
         {
+            //
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _acrTokenProvider = acrTokenProvider ?? throw new ArgumentNullException(nameof(acrTokenProvider));
             _registryName = _config["Azure:RegistryName"] ?? throw new ArgumentNullException(nameof(config), "RegistryName cannot be null");
             _subscriptionId = _config["Azure:SubscriptionId"] ?? throw new ArgumentNullException(nameof(config), "Subscription cannot be null");
             _resourceGroupName = _config["Azure:ResourceGroupName"] ?? throw new ArgumentNullException(nameof(config), "ResourceGroupName cannot be null");
+            //
         }
 
         public async Task<TokenDetails> GetTokenAsync(string tokenName)
@@ -55,7 +56,7 @@ namespace CCRManager.Services
                     throw new Exception($"Failed to get token '{tokenName}'. Status Code: {response.StatusCode}");
                 }
                 var responseContent = await response.Content.ReadAsStringAsync();
-                using JsonDocument doc = JsonDocument.Parse(responseContent);
+                using JsonDocument doc = JsonDocument.Parse(responseContent); // parse as object
                 var root = doc.RootElement;
                 return new TokenDetails
                 {

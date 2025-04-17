@@ -1,7 +1,7 @@
-﻿using CCRManager.Services.Interfaces;
+﻿    using CommonContainerRegistry.Services.ServicesInterfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CCRManager.Controllers
+namespace CommonContainerRegistry.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

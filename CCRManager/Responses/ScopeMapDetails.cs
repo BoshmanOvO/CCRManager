@@ -1,4 +1,4 @@
-﻿namespace CCRManager.Responses
+﻿namespace CommonContainerRegistry.Responses
 {
     public class ScopeMapDetails
     {

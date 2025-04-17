@@ -1,7 +1,7 @@
-﻿using CCRManager.Models;
-using CCRManager.Responses;
+﻿using CommonContainerRegistry.Models;
+using CommonContainerRegistry.Responses;
 
-namespace CCRManager.Services.Interfaces
+namespace CommonContainerRegistry.Services.ServicesInterfaces
 {
     public interface ICommonContainerRegistryServices
     {

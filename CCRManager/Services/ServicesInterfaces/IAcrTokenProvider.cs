@@ -1,4 +1,4 @@
-﻿namespace CCRManager.Services.Interfaces
+﻿namespace CommonContainerRegistry.Services.ServicesInterfaces
 {
     public interface IAcrTokenProvider
     {

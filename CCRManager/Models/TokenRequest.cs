@@ -1,4 +1,4 @@
-﻿namespace CCRManager.Models
+﻿namespace CommonContainerRegistry.Models
 {
     public class TokenRequest
     {
