@@ -1,51 +1,40 @@
 ﻿using CommonContainerRegistry.Utils;
-using CommonContainerRegistry.Models;   
-using CommonContainerRegistry.Responses;
 using CommonContainerRegistry.Services.ServicesInterfaces;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using CommonContainerRegistry.Constants;
+using CommonContainerRegistry.Models.Requests;
+using CommonContainerRegistry.Models.Responses;
+using Microsoft.Extensions.Options;
 
 namespace CommonContainerRegistry.Services
 {
-    public class CommonContainerRegistryServices : ICommonContainerRegistryServices
+    public class CommonContainerRegistryServices(IOptions<AppSettings> appSettings, IAcrTokenProvider acrTokenProvider, HttpClient httpClient) : ICommonContainerRegistryServices
     {
-        private readonly IConfiguration _config;
-        private readonly HttpClient? _httpClient;
-        private readonly IAcrTokenProvider? _acrTokenProvider;
-        private readonly string? _registryName;
-        private readonly string? _subscriptionId;
-        private readonly string? _resourceGroupName;
-        public CommonContainerRegistryServices(IConfiguration config, HttpClient httpClient, IAcrTokenProvider acrTokenProvider)
-        {
-            //
-            _config = config ?? throw new ArgumentNullException(nameof(config));
-            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-            _acrTokenProvider = acrTokenProvider ?? throw new ArgumentNullException(nameof(acrTokenProvider));
-            _registryName = _config["Azure:RegistryName"] ?? throw new ArgumentNullException(nameof(config), "RegistryName cannot be null");
-            _subscriptionId = _config["Azure:SubscriptionId"] ?? throw new ArgumentNullException(nameof(config), "Subscription cannot be null");
-            _resourceGroupName = _config["Azure:ResourceGroupName"] ?? throw new ArgumentNullException(nameof(config), "ResourceGroupName cannot be null");
-            //
-        }
+        private readonly IAcrTokenProvider? _acrTokenProvider = acrTokenProvider;
+        private readonly HttpClient? _httpClient = httpClient;
+        private readonly AppSettings _appSettings = appSettings.Value;
 
         public async Task<TokenDetails> GetTokenAsync(string tokenName)
         {
             if (_httpClient == null)
             {
-                throw new InvalidOperationException("HttpClient is not initialized.");
+                throw new InvalidOperationException("HttpClient is not initialized. Please check your configuration.");
             }
             if (_acrTokenProvider == null)
             {
-                throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+                throw new InvalidOperationException("AcrTokenProvider is not initialized. Please check your configuration.");
             }
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var GetTokenEndpoint = string.Format(AzureApiEndpoints.GetToken, _subscriptionId, _resourceGroupName, _registryName, tokenName);
+                var GetTokenEndpoint = string.Format(AzureApiEndpoints.GetToken, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, tokenName);
+
                 var request = new HttpRequestMessage(HttpMethod.Get, GetTokenEndpoint);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
+
                 var response = await _httpClient.SendAsync(request);
                 if (response.StatusCode == HttpStatusCode.NotFound)
                 {
@@ -74,18 +63,20 @@ namespace CommonContainerRegistry.Services
         public async Task<ScopeMapDetails> GetScopeMapAsync(string scopeMapName)
         {
             if (_httpClient == null)
+            {
                 throw new InvalidOperationException("HttpClient is not initialized.");
-
+            }
             if (_acrTokenProvider == null)
+            {
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
+            }
 
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var getScopeMapEndpoint = string.Format(AzureApiEndpoints.GetScopeMap, _subscriptionId, _resourceGroupName, _registryName, scopeMapName);
+                var getScopeMapEndpoint = string.Format(AzureApiEndpoints.GetScopeMap, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, scopeMapName);
                 var request = new HttpRequestMessage(HttpMethod.Get, getScopeMapEndpoint);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
-
                 var response = await _httpClient.SendAsync(request);
 
                 if (response.StatusCode == HttpStatusCode.NotFound)
@@ -148,14 +139,14 @@ namespace CommonContainerRegistry.Services
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var tokenEndpoint = string.Format(AzureApiEndpoints.CreateScopeMapEndPoint, _subscriptionId, _resourceGroupName, _registryName, scopeMapRequest.Name);
+                var tokenEndpoint = string.Format(AzureApiEndpoints.CreateScopeMapEndPoint, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, scopeMapRequest.Name);
                 var requestBody = new
                 {
                     properties = new
                     {
                         description = scopeMapRequest.Description,
                         actions = scopeMapRequest.Permissions.Select(permission =>
-                                        $"repositories/{_registryName}/{permission.ToString().ToLower()}").ToArray()
+                                        $"repositories/{_appSettings.RegistryName}/{permission.ToString().ToLower()}").ToArray()
                     }
                 };
                 var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
@@ -229,12 +220,12 @@ namespace CommonContainerRegistry.Services
             try
             {
                 var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-                var createTokenEndpoint = string.Format(AzureApiEndpoints.CreateTokenEndpoint, _subscriptionId, _resourceGroupName, _registryName, tokenRequest.TokenName);
+                var createTokenEndpoint = string.Format(AzureApiEndpoints.CreateTokenEndpoint, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, tokenRequest.TokenName);
                 var requestBody = new
                 {
                     properties = new
                     {
-                        scopeMapId = string.Format(AzureApiEndpoints.ScopeMapId, _subscriptionId, _resourceGroupName, _registryName, tokenRequest.ScopeMapName),
+                        scopeMapId = string.Format(AzureApiEndpoints.ScopeMapId, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, tokenRequest.ScopeMapName),
                         tokenRequest.Status,
                         credentials = new
                         {
@@ -290,11 +281,10 @@ namespace CommonContainerRegistry.Services
             try
             {
                 var accessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-
-                var createTokenPasswordEndpoint = string.Format(AzureApiEndpoints.CreateTokenPasswordEndpoint, _subscriptionId, _resourceGroupName, _registryName);
+                var createTokenPasswordEndpoint = string.Format(AzureApiEndpoints.CreateTokenPasswordEndpoint, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName);
                 var requestBody = new
                 {
-                    tokenId = string.Format(AzureApiEndpoints.TokenId, _subscriptionId, _resourceGroupName, _registryName, passwordRequest.TokenName),
+                    tokenId = string.Format(AzureApiEndpoints.TokenId, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, passwordRequest.TokenName),
                     expiry = UtilityFunctions.ConvertToIso8601(passwordRequest.PasswordExpiryDate)
                 };
                 var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
@@ -356,7 +346,7 @@ namespace CommonContainerRegistry.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var DeleteTokenEndpoint = string.Format(AzureApiEndpoints.DeleteTokenEndpoint, _subscriptionId, _resourceGroupName, _registryName, tokenName);
+            var DeleteTokenEndpoint = string.Format(AzureApiEndpoints.DeleteTokenEndpoint, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, tokenName);
             var request = new HttpRequestMessage(HttpMethod.Delete, DeleteTokenEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
             var response = await _httpClient.SendAsync(request);
@@ -392,7 +382,7 @@ namespace CommonContainerRegistry.Services
                 throw new InvalidOperationException("AcrTokenProvider is not initialized.");
             }
             var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
-            var DeleteScopeMapEndpoint = string.Format(AzureApiEndpoints.DeleteScopeMapEndpoint, _subscriptionId, _resourceGroupName, _registryName, scopeMapName);
+            var DeleteScopeMapEndpoint = string.Format(AzureApiEndpoints.DeleteScopeMapEndpoint, _appSettings.SubscriptionId, _appSettings.ResourceGroupName, _appSettings.RegistryName, scopeMapName);
             var request = new HttpRequestMessage(HttpMethod.Delete, DeleteScopeMapEndpoint);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", acrAccessToken);
 

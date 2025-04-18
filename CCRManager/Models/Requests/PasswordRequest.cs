@@ -1,4 +1,4 @@
-﻿namespace CommonContainerRegistry.Models
+﻿namespace CommonContainerRegistry.Models.Requests
 {
     public class PasswordRequest
     {

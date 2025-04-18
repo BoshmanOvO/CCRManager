@@ -1,5 +1,5 @@
-﻿using CommonContainerRegistry.Models;
-using CommonContainerRegistry.Responses;
+﻿using CommonContainerRegistry.Models.Requests;
+using CommonContainerRegistry.Models.Responses;
 
 namespace CommonContainerRegistry.Services.ServicesInterfaces
 {

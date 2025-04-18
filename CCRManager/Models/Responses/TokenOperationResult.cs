@@ -1,4 +1,4 @@
-﻿namespace CommonContainerRegistry.Responses
+﻿namespace CommonContainerRegistry.Models.Responses
 {
     public class TokenOperationResult
     {

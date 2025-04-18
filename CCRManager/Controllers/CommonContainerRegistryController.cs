@@ -1,5 +1,4 @@
-﻿
-using CommonContainerRegistry.Models;
+﻿using CommonContainerRegistry.Models.Requests;
 using CommonContainerRegistry.Services.ServicesInterfaces;
 using Microsoft.AspNetCore.Mvc;
 

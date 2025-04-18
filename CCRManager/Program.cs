@@ -1,7 +1,9 @@
 
+using CommonContainerRegistry;
 using CommonContainerRegistry.Services;
 using CommonContainerRegistry.Services.ServicesInterfaces;
 using Microsoft.OpenApi.Models;
+using Windows.UI.ViewManagement;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAcrTokenProvider, AcrTokenProvider>();
 builder.Services.AddScoped<ICommonContainerRegistryServices, CommonContainerRegistryServices>();
-
+builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Azure"));
 
 builder.Services.AddControllers();
 
