@@ -1,9 +1,9 @@
-
 using CommonContainerRegistry;
 using CommonContainerRegistry.Services;
 using CommonContainerRegistry.Services.ServicesInterfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.OpenApi.Models;
-using Windows.UI.ViewManagement;
+using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +12,10 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IAcrTokenProvider, AcrTokenProvider>();
 builder.Services.AddScoped<ICommonContainerRegistryServices, CommonContainerRegistryServices>();
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Azure"));
+
+builder.Services.AddRefitClient<IAzureApiService> ().ConfigureHttpClient(c => c.BaseAddress = new Uri("https://management.azure.com"));
+
+
 
 builder.Services.AddControllers();
 

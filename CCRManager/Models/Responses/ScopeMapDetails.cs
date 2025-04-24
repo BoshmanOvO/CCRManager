@@ -1,10 +1,13 @@
-﻿namespace CommonContainerRegistry.Models.Responses
+﻿using System.Text.Json.Serialization;
+
+namespace CommonContainerRegistry.Models.Responses
 {
     public class ScopeMapDetails
     {
+        [JsonPropertyName("name")]
         public string? Name { get; set; }
-        public string? Description { get; set; }
-        public DateTime? CreationDate { get; set; }
-        public List<string>? Actions { get; set; }
+
+        [JsonPropertyName("properties")]
+        public ScopeMapProperties? Properties { get; set; }
     }
 }

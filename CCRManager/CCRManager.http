@@ -2,7 +2,7 @@
 
 
 # https://localhost:7028/api/CommonContainerRegistry/token?name=token1
-GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token?name=token1 Http/1.1
+GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token?name=Testing
 ###
 
 # https://localhost:7028/api/CommonContainerRegistry/scopemaps

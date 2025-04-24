@@ -1,4 +1,6 @@
-﻿namespace CommonContainerRegistry.Models.Requests
+﻿using System.Text.Json.Serialization;
+
+namespace CommonContainerRegistry.Models.Requests
 {
     public class TokenRequest
     {

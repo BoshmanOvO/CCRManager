@@ -2,12 +2,12 @@
 
 namespace CommonContainerRegistry.Models.Responses
 {
-    public class TokenDetails
+    public class ScopeMapResponse
     {
         [JsonPropertyName("name")]
-        public string? Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [JsonPropertyName("properties")]
-        public TokenProperties? Properties { get; set; }
+        public ScopeMapProperties Properties { get; set; } = new ScopeMapProperties();
     }
 }

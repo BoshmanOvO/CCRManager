@@ -22,7 +22,16 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var tokenDetails = await acrService.GetTokenAsync(name);
-                return Ok(tokenDetails);
+                return tokenDetails == null ? throw new ArgumentException("Some error occurred while getting the token") : (IActionResult) Ok(tokenDetails);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(StatusCodes.Status404NotFound,
+                    new { error = "Failed to get token credentials.", details = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "Invalid request provided.", details = ex.Message });
             }
             catch (Exception ex)
             {
@@ -41,16 +50,13 @@ namespace CommonContainerRegistry.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> CreateOrUpdateTokenAsync([FromBody] TokenRequest tokenRequest)
         {
-            if (tokenRequest == null)
-            {
-                return BadRequest(new { error = "TokenRequest payload cannot be null." });
-            }
+            if (tokenRequest == null) return BadRequest(new { error = "TokenRequest payload cannot be null." });
             try
             {
                 var result = await acrService.CreateOrUpdateTokenAsync(tokenRequest);
+                if (result == null) return BadRequest(new { error = "Failed to create or update the token." });
                 if (result.IsNewlyCreated)
                 {
-                    //return StatusCode(StatusCodes.Status201Created, $"Token \"{tokenRequest.TokenName}\" is successfully created.");
                     return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/token?name={tokenRequest.TokenName}"), $"Token \"{tokenRequest.TokenName}\" is successfully created.");
                 }
                 else
@@ -60,13 +66,12 @@ namespace CommonContainerRegistry.Controllers
             }
             catch (HttpRequestException ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { error = "Failed to create or update the token due to an HTTP error.", details = ex.Message });
+                return StatusCode(StatusCodes.Status404NotFound,
+                    new { error = "Failed to create or update token credentials due to an HTTP error.", details = ex.Message });
             }
-            catch (InvalidOperationException ex)
+            catch (ArgumentException ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError,
-                    new { error = "Service configuration error.", details = ex.Message });
+                return BadRequest(new { error = "Invalid request provided.", details = ex.Message });
             }
             catch (Exception ex)
             {
@@ -84,7 +89,17 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.DeleteTokenAsync(name);
+                if (result == null) return BadRequest(new { error = "Failed to delete the token." });
                 return NoContent();
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(StatusCodes.Status404NotFound,
+                    new { error = "Failed to delete token credentials due to an HTTP error.", details = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = "Invalid request provided.", details = ex.Message });
             }
             catch (Exception ex)
             {
@@ -102,19 +117,15 @@ namespace CommonContainerRegistry.Controllers
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GenerateCredentialsAsync([FromBody] PasswordRequest passwordRequest)
         {
-            if (passwordRequest == null)
-            {
-                return BadRequest(new { error = "PasswordRequest payload is required." });
-            }
             try
             {
                 var result = await acrService.CreateTokenPasswordAsync(passwordRequest);
-                return StatusCode(StatusCodes.Status201Created, result);
+                return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/token?name={passwordRequest.TokenName}"), result);
             }
             catch (HttpRequestException ex)
             {
                 return StatusCode(StatusCodes.Status404NotFound,
-                    new { error = "Failed to generate token credentials.", details = ex.Message });
+                    new { error = "Failed to generate token credentials due to an HTTP error.", details = ex.Message });
             }
             catch (ArgumentException ex)
             {
@@ -142,11 +153,11 @@ namespace CommonContainerRegistry.Controllers
                 var result = await acrService.CreateOrUpdateScopeMapAsync(scopeMapRequest);
                 if (result.IsNewlyCreated)
                 {
-                    return StatusCode(StatusCodes.Status201Created, $"Token \"{scopeMapRequest.Name}\" is successfully created.");
+                    return StatusCode(StatusCodes.Status201Created, $"Scope Map \"{scopeMapRequest.Name}\" is successfully created.");
                 }
                 else
                 {
-                    return Ok($"Token \"{scopeMapRequest.Name}\" is successfully updated.");
+                    return Ok($"Scope Map \"{scopeMapRequest.Name}\" is successfully updated.");
                 }
             }
             catch (HttpRequestException ex)
@@ -179,7 +190,21 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.DeleteScopeMapAsync(name);
-                return StatusCode(StatusCodes.Status204NoContent, result);
+                if (result == null)
+                {
+                    return BadRequest(new { error = "Failed to delete the scope map." });
+                }
+                return NoContent();
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Failed to delete the scope map due to an HTTP error.", details = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Service configuration error.", details = ex.Message });
             }
             catch (Exception ex)
             {
@@ -202,11 +227,20 @@ namespace CommonContainerRegistry.Controllers
             {
                 return BadRequest(new { error = "Scope map name is required." });
             }
-
             try
             {
                 var scopeMapDetails = await acrService.GetScopeMapAsync(name);
                 return Ok(scopeMapDetails);
+            }
+            catch (HttpRequestException ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Failed to get a scope map due to an HTTP error.", details = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError,
+                    new { error = "Service configuration error.", details = ex.Message });
             }
             catch (Exception ex)
             {

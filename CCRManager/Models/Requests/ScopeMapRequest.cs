@@ -1,9 +1,11 @@
-﻿namespace CommonContainerRegistry.Models.Requests
+﻿using System.Text.Json.Serialization;
+
+namespace CommonContainerRegistry.Models.Requests
 {
     public class ScopeMapRequest
     {
-        public required string Name { get; set; }
-        public required string Description { get; set; }
-        public required List<string> Permissions { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty; 
+        public List<string> Permissions { get; set; } = [];
     }
 }
