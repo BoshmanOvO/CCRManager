@@ -6,7 +6,8 @@ using CommonContainerRegistry.Models.Requests;
 using CommonContainerRegistry.Models.Responses;
 using Microsoft.Extensions.Options;
 using CommonContainerRegistry.Models.Payloads;
-using Microsoft.AspNetCore.Http.HttpResults;
+using Refit;
+using CommonContainerRegistry.Exceptions;
 
 
 namespace CommonContainerRegistry.Services
@@ -74,9 +75,9 @@ namespace CommonContainerRegistry.Services
                     },
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception($"Error fetching scope map '{scopeMapName}': {ex.Message}");
+                throw;
             }
         }
 
@@ -119,15 +120,15 @@ namespace CommonContainerRegistry.Services
                     ScopeMapDetails = scopeMapDetails
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception($"An error occurred while creating or updating ScopeMap '{scopeMapRequest.Name}': {ex.Message}", ex);
+                throw;
             }
         }
 
         public async Task<TokenOperationResult> CreateOrUpdateTokenAsync(TokenRequest tokenRequest)
         {
-            bool tokenExists = await TokenExistsAsync(tokenRequest.TokenName);
+            bool tokenExists = await TokenExistsAsync(tokenRequest.Name);
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
@@ -148,7 +149,7 @@ namespace CommonContainerRegistry.Services
                     _appSettings.SubscriptionId,
                     _appSettings.ResourceGroupName,
                     _appSettings.RegistryName,
-                    tokenRequest.TokenName,
+                    tokenRequest.Name,
                     payload,
                     authorizationHeader
                 ) ?? null;
@@ -158,14 +159,15 @@ namespace CommonContainerRegistry.Services
                     ResponseContent = response?.ResponseContent
                 };
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception($"An unexpected error occurred while processing token '{tokenRequest.TokenName}': {ex.Message}", ex);
+                throw;
             }
         }
 
         public async Task<string> CreateTokenPasswordAsync(PasswordRequest passwordRequest)
         {
+            await TokenExistsAsync(passwordRequest.TokenName);
             try
             {
                 var acrAccessToken = await _acrTokenProvider.GetAcrAccessTokenAsync();
@@ -186,21 +188,21 @@ namespace CommonContainerRegistry.Services
                 var firstPassword = response?.Passwords.FirstOrDefault();
                 var result = new TokenPasswordResponse
                 {
-                    Username = response.Username,
+                    Username = response?.Username ?? string.Empty,
                     Passwords =
                     [
                         new() {
-                            Name = firstPassword.Name,
-                            Value = firstPassword.Value,
-                            Expiry = firstPassword.Expiry,
+                            Name = firstPassword?.Name ?? string.Empty,
+                            Value = firstPassword ?.Value ?? string.Empty,
+                            Expiry = firstPassword?.Expiry ?? default,
                         }
                     ]
                 };
                 return UtilityFunctions.PrettyPrintJson(JsonSerializer.Serialize(result));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                throw new Exception($"An error occurred while generating credentials for token '{passwordRequest.TokenName}': {ex.Message}", ex);
+                throw;
             }
         }
 

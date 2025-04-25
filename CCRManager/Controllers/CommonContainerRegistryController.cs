@@ -22,7 +22,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var tokenDetails = await acrService.GetTokenAsync(name);
-                return tokenDetails == null ? throw new ArgumentException("Some error occurred while getting the token") : (IActionResult) Ok(tokenDetails);
+                if (tokenDetails == null) {
+                    return NotFound(new { error = "Fail to get the token." });
+                }
+                return Ok(tokenDetails);
             }
             catch (HttpRequestException ex)
             {
@@ -54,14 +57,17 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.CreateOrUpdateTokenAsync(tokenRequest);
-                if (result == null) return BadRequest(new { error = "Failed to create or update the token." });
+                if (result == null)
+                {
+                    return BadRequest(new { error = "Failed to create or update the token." });
+                }
                 if (result.IsNewlyCreated)
                 {
-                    return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/token?name={tokenRequest.TokenName}"), $"Token \"{tokenRequest.TokenName}\" is successfully created.");
+                    return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/token?name={tokenRequest.Name}"), $"Token \"{tokenRequest.Name}\" is successfully created.");
                 }
                 else
                 {
-                    return Ok($"Token \"{tokenRequest.TokenName}\" is successfully updated.");
+                    return Ok($"Token \"{tokenRequest.Name}\" is successfully updated.");
                 }
             }
             catch (HttpRequestException ex)
@@ -89,7 +95,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.DeleteTokenAsync(name);
-                if (result == null) return BadRequest(new { error = "Failed to delete the token." });
+                if (result == null)
+                {
+                    return BadRequest(new { error = "Failed to delete the token." });
+                }
                 return NoContent();
             }
             catch (HttpRequestException ex)
@@ -120,6 +129,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.CreateTokenPasswordAsync(passwordRequest);
+                if (result == null)
+                {
+                    return BadRequest(new { error = "Failed to generate token credentials." });
+                }
                 return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/token?name={passwordRequest.TokenName}"), result);
             }
             catch (HttpRequestException ex)
@@ -137,7 +150,7 @@ namespace CommonContainerRegistry.Controllers
                     new { error = "An unexpected error occurred while generating token credentials.", details = ex.Message });
             }
         }
-        
+
         [HttpPut("scopemap")]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -151,9 +164,13 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.CreateOrUpdateScopeMapAsync(scopeMapRequest);
+                if (result == null)
+                {
+                    return BadRequest(new { error = "Failed to create or update the scope map." });
+                }
                 if (result.IsNewlyCreated)
                 {
-                    return StatusCode(StatusCodes.Status201Created, $"Scope Map \"{scopeMapRequest.Name}\" is successfully created.");
+                    return Created(new Uri($"{Request.Scheme}://{Request.Host}/api/commoncontainerregistry/scopemap?name={scopeMapRequest.Name}"), $"Scope Map \"{scopeMapRequest.Name}\" is successfully created.");
                 }
                 else
                 {
@@ -190,6 +207,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var result = await acrService.DeleteScopeMapAsync(name);
+                if (result != null)
+                {
+                    BadRequest(new { error = "Failed to delete the scope map." });
+                }
                 if (result == null)
                 {
                     return BadRequest(new { error = "Failed to delete the scope map." });
@@ -230,6 +251,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 var scopeMapDetails = await acrService.GetScopeMapAsync(name);
+                if (scopeMapDetails == null)
+                {
+                    return NotFound(new { error = "Scope map not found." });
+                }
                 return Ok(scopeMapDetails);
             }
             catch (HttpRequestException ex)
