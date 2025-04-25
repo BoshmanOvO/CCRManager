@@ -23,7 +23,7 @@ namespace CommonContainerRegistry.Controllers
             {
                 var tokenDetails = await acrService.GetTokenAsync(name);
                 if (tokenDetails == null) {
-                    return NotFound(new { error = "Fail to get the token." });
+                    return BadRequest(new { error = "Fail to get the token." });
                 }
                 return Ok(tokenDetails);
             }
