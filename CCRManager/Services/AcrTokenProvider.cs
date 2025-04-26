@@ -1,44 +1,35 @@
-﻿using CommonContainerRegistry.Services.ServicesInterfaces;
+﻿using CommonContainerRegistry.Constants;
+using CommonContainerRegistry.Services.ServicesInterfaces;
+using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace CommonContainerRegistry.Services
 {
-    public class AcrTokenProvider(IConfiguration config) : IAcrTokenProvider
+    public class AcrTokenProvider(IOptions<AppSettings> appSettings, IAzureAuthClient azureAuthClient) : IAcrTokenProvider
     {
-        private readonly HttpClient _httpClient = new();
+        private readonly AppSettings _appSettings = appSettings.Value;
+        private readonly IAzureAuthClient _azureAuthClient = azureAuthClient;
 
         public async Task<string> GetAcrAccessTokenAsync()
         {
+            string _tenantId = _appSettings.TenantId ?? throw new ArgumentNullException(nameof(_tenantId), "TenantId cannot be null");
             try
             {
-                string _registryUrl = config["Azure:RegistryName"] ?? throw new ArgumentNullException(nameof(_registryUrl), "RegistryName cannot be null");
-                string _clientId = config["Azure:ClientId"] ?? throw new ArgumentNullException(nameof(_clientId), "ClientId cannot be null");
-                string _clientSecret = config["Azure:ClientSecret"] ?? throw new ArgumentNullException(nameof(_clientSecret), "ClientSecret cannot be null");
-                string _tenantId = config["Azure:TenantId"] ?? throw new ArgumentNullException(nameof(_tenantId), "TenantId cannot be null");
-
-                var tokenUrl = $"https://login.microsoftonline.com/{_tenantId}/oauth2/token";
                 var requestBody = new Dictionary<string, string>
                 {
-                    { "grant_type", "client_credentials" },
-                    { "client_id", _clientId },
-                    { "client_secret", _clientSecret },
-                    { "resource", $"https://management.azure.com/" }
+                    ["grant_type"] = "client_credentials",
+                    ["client_id"] = _appSettings.ClientId!,
+                    ["client_secret"] = _appSettings.ClientSecret!,
+                    ["resource"] = "https://management.azure.com/"
                 };
-
-                var requestContent = new FormUrlEncodedContent(requestBody);
-                var response = await _httpClient.PostAsync(tokenUrl, requestContent);
-                response.EnsureSuccessStatusCode();
-                var responseContent = await response.Content.ReadAsStringAsync();
-                var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, string>>(responseContent);
-
-                if (tokenResponse != null && tokenResponse.TryGetValue("access_token", out var accessToken))
+                var result = await _azureAuthClient.GetAcrAccessTokenAsync(_tenantId, requestBody) ?? null;
+                using var doc = JsonDocument.Parse(result);
+                if (!doc.RootElement.TryGetProperty("access_token", out var tok) ||
+                    tok.ValueKind != JsonValueKind.String)
                 {
-                    return accessToken;
+                    throw new ApplicationException("Azure AD response did not contain an access_token.");
                 }
-                else
-                {
-                    throw new ApplicationException("Failed to get ACR access token: access_token not found in response.");
-                }
+                return tok.GetString()!;
             }
             catch (Exception ex)
             {

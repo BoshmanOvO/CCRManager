@@ -2,7 +2,6 @@
 using CommonContainerRegistry.Models.Requests;
 using CommonContainerRegistry.Models.Responses;
 using Refit;
-using System.Net.Http.Headers;
 
 namespace CommonContainerRegistry.Services.ServicesInterfaces
 {

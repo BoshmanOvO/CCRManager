@@ -14,6 +14,7 @@ builder.Services.AddScoped<ICommonContainerRegistryServices, CommonContainerRegi
 builder.Services.Configure<AppSettings>(builder.Configuration.GetSection("Azure"));
 
 builder.Services.AddRefitClient<IAzureApiService> ().ConfigureHttpClient(c => c.BaseAddress = new Uri("https://management.azure.com"));
+builder.Services.AddRefitClient<IAzureAuthClient>().ConfigureHttpClient(c => c.BaseAddress = new Uri("https://login.microsoftonline.com"));
 
 
 

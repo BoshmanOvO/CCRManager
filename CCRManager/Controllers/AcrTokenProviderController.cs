@@ -15,6 +15,10 @@ namespace CommonContainerRegistry.Controllers
             try
             {
                 string token = await _acrAuthService.GetAcrAccessTokenAsync();
+                if (string.IsNullOrEmpty(token))
+                {
+                    return NotFound(new { error = "Token not found" });
+                }
                 return Ok(new { token });
             }
             catch (Exception ex)
