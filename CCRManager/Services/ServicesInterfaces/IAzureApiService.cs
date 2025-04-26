@@ -1,5 +1,4 @@
 ﻿using CommonContainerRegistry.Models.Payloads;
-using CommonContainerRegistry.Models.Requests;
 using CommonContainerRegistry.Models.Responses;
 using Refit;
 
@@ -30,6 +29,4 @@ namespace CommonContainerRegistry.Services.ServicesInterfaces
     }
 }
 
-
-
-// Api version should be dynamic.
+// Api version should be dynamic cuz it can change any period of time.

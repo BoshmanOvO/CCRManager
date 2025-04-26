@@ -2,14 +2,14 @@
 
 
 # https://localhost:7028/api/CommonContainerRegistry/token?name=token1
-GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token?name=Testing
+GET {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token?name=Testingg
 ###
 
 # https://localhost:7028/api/CommonContainerRegistry/scopemaps
-PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/scopemaps HTTP/1.1
+PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/scopemap HTTP/1.1
 Content-Type: application/json
 {
-  "name": "ReadWrite",
+  "name": "ReadLike",
   "description": "A scope map for read write",
   "permissions": [
     "content/read",
@@ -22,7 +22,7 @@ Content-Type: application/json
 PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/token HTTP/1.1
 Content-Type: application/json
 {
-  "tokenName": "token1",
+  "Name": "token1",
   "scopeMapName": "ReadWrite",
   "status": "disabled"
 }
@@ -33,7 +33,7 @@ PUT {{CCRManager_HostAddress}}/api/CommonContainerRegistry/password HTTP/1.1
 Content-Type: application/json
 {
   "tokenName": "token1",
-  "passwordExpiryDate": "04/10/2025 12:12:12"
+  "passwordExpiryDate": "04/28/2025 12:12:12"
 }
 ### MM/dd/yyyy HH:MM:SS
 ###
